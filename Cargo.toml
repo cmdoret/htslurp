@@ -9,5 +9,7 @@ name = "htslurp"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.22.0", features = ["abi3-py310"] }
+pyo3 = { version = "0.22.0", features = ["abi3-py310", "experimental-async"] }
 noodles-htsget = "0.6.0"
+tokio = { version = "1.38.0", features = ["tokio-macros"] }
+futures = "0.3.30"
