@@ -1,15 +1,26 @@
 use pyo3::prelude::*;
-pub mod client;
+use pyo3::wrap_pymodule;
+mod client;
+mod parse;
 
-/// Formats the sum of two numbers as string.
-#[pyfunction]
-fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
-    Ok((a + b).to_string())
+#[pymodule]
+mod parser {
+    use crate::parse;
+
+    #[pymodule_export]
+    use parse::parse_reads;
+}
+#[pymodule]
+mod htsget_client {
+    use crate::client;
+
+    #[pymodule_export]
+    use client::stream;
 }
 
-/// A Python module implemented in Rust.
 #[pymodule]
 fn htslurp(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
+    m.add_wrapped(wrap_pymodule!(htsget_client))?;
+
     Ok(())
 }
