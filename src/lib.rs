@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::wrap_pymodule;
-mod client;
-mod parse;
+pub mod client;
+pub mod parse;
 
 #[pymodule]
 mod parser {
@@ -10,6 +10,7 @@ mod parser {
     #[pymodule_export]
     use parse::parse_reads;
 }
+
 #[pymodule]
 mod htsget_client {
     use crate::client;
