@@ -38,3 +38,47 @@ pub fn client(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(stream, m)?)?;
     Ok(())
 }
+
+/// Test client streaming. Assumes an htsget server is already running on localhost
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+    use testcontainers::{
+        core::{
+            IntoContainerPort,
+            Mount,
+            logs::LogFrame,
+        },
+        runners::SyncRunner,
+        GenericImage, ImageExt,
+    };
+
+
+    #[test]
+    fn test_stream() -> Result<(), Error>{
+        let _server = GenericImage::new("ghcr.io/umccr/htsget-rs", "dev-94")
+          .with_mapped_port(8080, 8080.tcp())
+          .with_mapped_port(8081, 8081.tcp())
+          .with_mount(
+            Mount::bind_mount(
+                std::fs::canonicalize("./data")?
+                    .to_string_lossy(),
+                "/data"
+            )
+          )
+        .with_log_consumer(move |frame: &LogFrame| {
+            println!("{}", String::from_utf8_lossy(frame.bytes()));
+        })
+          .start()
+          .unwrap();
+
+        std::thread::sleep(std::time::Duration::from_secs(3));
+
+        let base_url = "http://localhost:8080/reads";
+        let id = "data/cram/htsnexus_test_NA12878";
+        let region = "11:4900000-5000000";
+        stream(base_url, id, region).unwrap();
+        Ok(())
+    }
+}
