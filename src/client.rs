@@ -57,6 +57,8 @@ pub mod tests {
 
     #[test]
     fn test_stream() -> Result<(), Error>{
+ 
+        // Spin up testcontainer with htsget server
         let _server = GenericImage::new("ghcr.io/umccr/htsget-rs", "dev-94")
           .with_mapped_port(8080, 8080.tcp())
           .with_mapped_port(8081, 8081.tcp())
@@ -73,12 +75,12 @@ pub mod tests {
           .start()
           .unwrap();
 
-        std::thread::sleep(std::time::Duration::from_secs(3));
-
+        // Test client: stream from server
         let base_url = "http://localhost:8080/reads";
         let id = "data/cram/htsnexus_test_NA12878";
         let region = "11:4900000-5000000";
         stream(base_url, id, region).unwrap();
+
         Ok(())
     }
 }
