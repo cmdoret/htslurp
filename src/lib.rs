@@ -15,8 +15,8 @@ mod parser {
 mod htsget_client {
     use crate::client;
 
-    #[pymodule_export]
-    use client::stream;
+    //#[pymodule_export]
+    //use client::stream;
 }
 
 #[pymodule]

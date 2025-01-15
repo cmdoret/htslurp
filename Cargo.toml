@@ -9,8 +9,12 @@ name = "htslurp"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.22.0", features = ["abi3-py310", "experimental-async"] }
+pyo3 = { version = "0.23.0", features = ["abi3-py310", "experimental-async"] }
 tokio = { version = "1.38.0", features = ["tokio-macros"] }
 futures = "0.3.30"
-noodles = { version = "0.85.0", features = ["vcf", "bam", "cram", "bcf", "htsget"] }
+noodles = { version = "0.87.0", features = ["vcf", "bam", "cram", "bcf", "htsget", "fasta", "async", "core", "sam"] }
 testcontainers = { version = "0.23.1", features = ["blocking"] }
+noodles-sam = "0.68.0"
+tokio-util = "0.7.13"
+pyo3-async-runtimes = { version = "0.23.0", features = ["attributes", "tokio-runtime"] }
+async-stream = "0.3.6"
