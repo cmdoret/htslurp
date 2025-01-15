@@ -87,13 +87,13 @@ pub async fn stream(base_url: &str, id: &str, region: &str, fasta_src: &str) -> 
     Ok(())
 }
 
-fn stream_records<'a>(
+pub fn stream_records<'a>(
     base_url: &'a str,
     id: &'a str,
     region: &'a str,
     fasta_src: &'a str,
-) -> Pin<Box<dyn Stream<Item = Result<(), io::Error>> + Send>> {
-    Box::pin(try_stream! {
+) -> impl Stream<Item = io::Result<()>> + 'a{
+    try_stream! {
         let format = htsget::reads::Format::Cram;
         let region: Region = region.parse().expect("invalid region");
         let url = base_url.parse().unwrap();
@@ -134,10 +134,10 @@ fn stream_records<'a>(
         while let Some(record) = records.try_next().await? {
             if intersects(&record, ref_seq_id, region_interval) {
                 println!("{:?}", record);
-                yield 
+                yield ()
             }
         }
-    })
+    }
 }
 
 fn intersects(record: &cram::Record, ref_seq_id: usize, interval: Interval) -> bool {
@@ -203,8 +203,11 @@ pub mod tests {
             let id = "data/cram/htsnexus_test_NA12878";
             let region = "11:4900000-5000000";
             let ref_seq = "/data/genomic/e_coli/ecoli_sample.fa";
-            let result = stream(base_url, id, region, ref_seq).await;
-            assert!(result.is_ok(), "Stream function failed: {:?}", result);
+            use std::pin::pin;
+            let mut result = pin!(stream_records(base_url, id, region, ref_seq));
+            println!("{:?}", result.next().await.unwrap().unwrap());
+            let record = result.next().await.unwrap();
+            assert!(record.is_ok(), "Stream function failed: {:?}", record);
         });
 
         Ok(())
