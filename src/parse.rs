@@ -1,10 +1,7 @@
-use std::path::Path;
-use noodles::{bam, core::Region, cram, fasta, sam};
+use noodles::{core::Region, sam};
 use noodles::sam::alignment::io::Write as AlignmentWrite;
 
-pub type Parsed = (Vec<u8>, Vec<Vec<u8>>);
-
-fn record_to_sam_bytes(
+pub(crate) fn record_to_sam_bytes(
     header: &sam::Header,
     record: &impl sam::alignment::Record,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
@@ -14,7 +11,9 @@ fn record_to_sam_bytes(
     Ok(buf)
 }
 
-fn header_to_sam_bytes(header: &sam::Header) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+pub(crate) fn header_to_sam_bytes(
+    header: &sam::Header,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let mut buf = Vec::new();
     let mut writer = sam::io::Writer::new(&mut buf);
     writer.write_header(header)?;
@@ -22,9 +21,8 @@ fn header_to_sam_bytes(header: &sam::Header) -> Result<Vec<u8>, Box<dyn std::err
 }
 
 // htsget responses are coarser than the requested region (BGZF blocks span
-// extra flanking records), so callers receive records the user did not ask
-// for unless we re-check each one here.
-fn matches_region<R: sam::alignment::Record>(
+// extra flanking records), so we re-check each one here.
+pub(crate) fn matches_region<R: sam::alignment::Record>(
     record: &R,
     header: &sam::Header,
     region: &Region,
@@ -44,55 +42,4 @@ fn matches_region<R: sam::alignment::Record>(
         return false;
     };
     region.interval().intersects((start..=end).into())
-}
-
-pub fn parse_bam_records(
-    data: &[u8],
-    region: Option<&Region>,
-) -> Result<Parsed, Box<dyn std::error::Error>> {
-    let mut reader = bam::io::Reader::new(std::io::Cursor::new(data));
-    let header = reader.read_header()?;
-    let header_bytes = header_to_sam_bytes(&header)?;
-    let mut out = Vec::new();
-    for result in reader.records() {
-        let record = result?;
-        if let Some(r) = region {
-            if !matches_region(&record, &header, r) {
-                continue;
-            }
-        }
-        out.push(record_to_sam_bytes(&header, &record)?);
-    }
-    Ok((header_bytes, out))
-}
-
-pub fn parse_cram_records(
-    data: &[u8],
-    reference: Option<&Path>,
-    region: Option<&Region>,
-) -> Result<Parsed, Box<dyn std::error::Error>> {
-    let repo = match reference {
-        Some(path) => fasta::io::indexed_reader::Builder::default()
-            .build_from_path(path)
-            .map(fasta::repository::adapters::IndexedReader::new)
-            .map(fasta::Repository::new)?,
-        None => fasta::Repository::default(),
-    };
-    let mut reader = cram::io::reader::Builder::default()
-        .set_reference_sequence_repository(repo)
-        .build_from_reader(std::io::Cursor::new(data));
-    reader.read_file_definition()?;
-    let header = reader.read_file_header()?;
-    let header_bytes = header_to_sam_bytes(&header)?;
-    let mut out = Vec::new();
-    for result in reader.records(&header) {
-        let record = result?;
-        if let Some(r) = region {
-            if !matches_region(&record, &header, r) {
-                continue;
-            }
-        }
-        out.push(record_to_sam_bytes(&header, &record)?);
-    }
-    Ok((header_bytes, out))
 }

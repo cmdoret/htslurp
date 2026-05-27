@@ -10,9 +10,10 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = { version = "0.22.0", features = ["abi3-py310", "experimental-async"] }
-tokio = { version = "1.38.0", features = ["rt", "macros"] }
+tokio = { version = "1.38.0", features = ["rt", "macros", "sync", "io-util", "time", "net"] }
+tokio-util = { version = "0.7", features = ["io"] }
 futures = "0.3.30"
-noodles = { version = "0.78.0", features = ["vcf", "bam", "cram", "bcf", "htsget", "sam", "fasta", "core"] }
+noodles = { version = "0.78.0", features = ["vcf", "bam", "cram", "bcf", "htsget", "sam", "fasta", "core", "async"] }
 
 [dev-dependencies]
 testcontainers = { version = "0.23.1", features = ["blocking"] }

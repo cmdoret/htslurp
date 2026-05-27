@@ -36,6 +36,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-compression"
+version = "0.4.33"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93c1f86859c1af3d514fa19e8323147ff10ea98684e6c7b307912509f50e67b2"
+dependencies = [
+ "compression-codecs",
+ "compression-core",
+ "futures-core",
+ "pin-project-lite",
+ "tokio",
+]
+
+[[package]]
 name = "async-trait"
 version = "0.1.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -231,6 +244,23 @@ dependencies = [
  "serde",
  "windows-link",
 ]
+
+[[package]]
+name = "compression-codecs"
+version = "0.4.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "680dc087785c5230f8e8843e2e57ac7c1c90488b6a91b88caa265410568f441b"
+dependencies = [
+ "compression-core",
+ "flate2",
+ "memchr",
+]
+
+[[package]]
+name = "compression-core"
+version = "0.4.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc14f565cf027a105f7a44ccf9e5b424348421a1d8952a8fc9d499d313107789"
 
 [[package]]
 name = "core-foundation"
@@ -585,6 +615,7 @@ dependencies = [
  "pyo3",
  "testcontainers",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]
@@ -962,11 +993,16 @@ checksum = "81e0702ff73390d2b8f97751bc34cfedcd3f5d39b4e32875e4c64a32d8cc670b"
 dependencies = [
  "noodles-bam",
  "noodles-bcf",
+ "noodles-bgzf",
  "noodles-core",
  "noodles-cram",
+ "noodles-csi",
  "noodles-fasta",
+ "noodles-fastq",
+ "noodles-gff",
  "noodles-htsget",
  "noodles-sam",
+ "noodles-tabix",
  "noodles-vcf",
 ]
 
@@ -980,11 +1016,13 @@ dependencies = [
  "bstr",
  "byteorder",
  "bytes",
+ "futures",
  "indexmap 2.2.6",
  "noodles-bgzf",
  "noodles-core",
  "noodles-csi",
  "noodles-sam",
+ "tokio",
 ]
 
 [[package]]
@@ -994,11 +1032,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1f217d811dde790866d3c4902ef713f9dc5c4b96e51935571ddf68399f97ad6"
 dependencies = [
  "byteorder",
+ "futures",
  "indexmap 2.2.6",
  "noodles-bgzf",
  "noodles-core",
  "noodles-csi",
  "noodles-vcf",
+ "tokio",
 ]
 
 [[package]]
@@ -1011,6 +1051,10 @@ dependencies = [
  "bytes",
  "crossbeam-channel",
  "flate2",
+ "futures",
+ "pin-project-lite",
+ "tokio",
+ "tokio-util",
 ]
 
 [[package]]
@@ -1028,18 +1072,22 @@ version = "0.66.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c7f58d900eb9fa1f0ef1a4834a6f71bfa792b25b2fa3b02e582239089907909"
 dependencies = [
+ "async-compression",
  "bitflags 2.11.1",
  "bstr",
  "byteorder",
  "bytes",
  "bzip2",
  "flate2",
+ "futures",
  "indexmap 2.2.6",
  "md-5",
  "noodles-bam",
  "noodles-core",
  "noodles-fasta",
  "noodles-sam",
+ "pin-project-lite",
+ "tokio",
  "xz2",
 ]
 
@@ -1054,6 +1102,7 @@ dependencies = [
  "indexmap 2.2.6",
  "noodles-bgzf",
  "noodles-core",
+ "tokio",
 ]
 
 [[package]]
@@ -1067,6 +1116,33 @@ dependencies = [
  "memchr",
  "noodles-bgzf",
  "noodles-core",
+ "tokio",
+]
+
+[[package]]
+name = "noodles-fastq"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1edf1f924acddeee36304c444e242b9bda52ef9383dc2d7f008fca190753207"
+dependencies = [
+ "futures",
+ "memchr",
+ "tokio",
+]
+
+[[package]]
+name = "noodles-gff"
+version = "0.35.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "adef59012090b5694b58cad0e4426cd18af404803f942d02e664af607d89ee28"
+dependencies = [
+ "futures",
+ "indexmap 2.2.6",
+ "noodles-bgzf",
+ "noodles-core",
+ "noodles-csi",
+ "percent-encoding",
+ "tokio",
 ]
 
 [[package]]
@@ -1092,12 +1168,14 @@ checksum = "b80efc627501962e2ff15411d1c011fa9cf3db1b47ddd13dceb1d1134068d5b7"
 dependencies = [
  "bitflags 2.11.1",
  "bstr",
+ "futures",
  "indexmap 2.2.6",
  "lexical-core",
  "memchr",
  "noodles-bgzf",
  "noodles-core",
  "noodles-csi",
+ "tokio",
 ]
 
 [[package]]
@@ -1112,6 +1190,7 @@ dependencies = [
  "noodles-bgzf",
  "noodles-core",
  "noodles-csi",
+ "tokio",
 ]
 
 [[package]]
@@ -1120,6 +1199,7 @@ version = "0.61.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6372f1df57c1826d083370b6eac586f331509feed15fd80dda306ef3e7ac68d"
 dependencies = [
+ "futures",
  "indexmap 2.2.6",
  "memchr",
  "noodles-bgzf",
@@ -1127,6 +1207,8 @@ dependencies = [
  "noodles-csi",
  "noodles-tabix",
  "percent-encoding",
+ "pin-project-lite",
+ "tokio",
 ]
 
 [[package]]

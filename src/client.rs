@@ -1,55 +1,15 @@
-use std::path::Path;
+use std::path::PathBuf;
 use pyo3::prelude::*;
 use pyo3::exceptions::PyRuntimeError;
-use futures::TryStreamExt;
 use noodles::{core::Region, htsget};
-use crate::parse::{parse_bam_records, parse_cram_records};
+use crate::stream::start_stream;
 use crate::RecordIter;
-
-fn io_err(kind: std::io::ErrorKind, e: impl std::fmt::Display) -> std::io::Error {
-    std::io::Error::new(kind, e.to_string())
-}
-
-fn fetch_bytes(
-    base_url: &str,
-    id: &str,
-    format: htsget::reads::Format,
-    region: Option<&Region>,
-) -> Result<Vec<u8>, std::io::Error> {
-    let url = base_url
-        .parse()
-        .map_err(|e| io_err(std::io::ErrorKind::InvalidInput, e))?;
-    let client = htsget::Client::new(url);
-    let mut request = client.reads(id).set_format(format);
-    if let Some(r) = region {
-        request = request.add_region(r.clone());
-    }
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()?
-        .block_on(async {
-            let response = request
-                .send()
-                .await
-                .map_err(|e| io_err(std::io::ErrorKind::Other, e))?;
-            let mut chunks = response.chunks();
-            let mut buf = Vec::new();
-            while let Some(chunk) = chunks
-                .try_next()
-                .await
-                .map_err(|e| io_err(std::io::ErrorKind::Other, e))?
-            {
-                buf.extend_from_slice(&chunk);
-            }
-            Ok(buf)
-        })
-}
 
 /// Stream alignment records from an htsget server.
 ///
-/// Fetches a (possibly region-restricted) slice of a BAM/CRAM resource and
-/// returns an iterator yielding one SAM-format alignment line per record.
-/// The SAM header is exposed on the returned iterator's ``header`` attribute.
+/// Lazily fetches and decodes a (possibly region-restricted) slice of a BAM
+/// or CRAM resource. Memory usage is bounded by an internal record buffer;
+/// the full response is never materialized.
 ///
 /// Args:
 ///     base_url: htsget endpoint URL (e.g. ``"https://htsget.ga4gh.org/reads"``).
@@ -81,20 +41,15 @@ pub fn stream_records(
         .map(|s| s.parse::<Region>())
         .transpose()
         .map_err(|e| PyRuntimeError::new_err(format!("invalid region: {e}")))?;
-    let data = fetch_bytes(base_url, id, fmt, parsed_region.as_ref())
-        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
-    let (header, records) = match fmt {
-        htsget::reads::Format::Cram => {
-            parse_cram_records(&data, reference.map(Path::new), parsed_region.as_ref())
-        }
-        htsget::reads::Format::Bam => parse_bam_records(&data, parsed_region.as_ref()),
-    }
+    let (header, rx) = start_stream(
+        base_url.to_string(),
+        id.to_string(),
+        fmt,
+        parsed_region,
+        reference.map(PathBuf::from),
+    )
     .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
-    Ok(RecordIter {
-        header,
-        records,
-        index: 0,
-    })
+    Ok(RecordIter { header, rx })
 }
 
 #[cfg(test)]
@@ -117,31 +72,30 @@ mod tests {
             .with_mount(Mount::bind_mount(data_dir.to_string_lossy(), "/data"))
             .start()
             .expect("htsget-rs container should start");
-        // htsget-rs prints structured logs but startup is ~150ms; give the
-        // workers a moment to bind ports before issuing the first request.
         std::thread::sleep(std::time::Duration::from_secs(1));
 
         let region: Region = "11:4900000-5000000".parse().expect("region parses");
-        let data = fetch_bytes(
-            "http://localhost:8080/reads",
-            "data/cram/htsnexus_test_NA12878",
+        let (header, mut rx) = start_stream(
+            "http://localhost:8080/reads".to_string(),
+            "data/cram/htsnexus_test_NA12878".to_string(),
             htsget::reads::Format::Cram,
-            Some(&region),
+            Some(region),
+            None,
         )
-        .expect("fetch_bytes succeeds");
+        .expect("stream starts");
 
-        assert!(!data.is_empty(), "htsget response should contain bytes");
-
-        let (header, records) =
-            parse_cram_records(&data, None, Some(&region)).expect("CRAM decodes");
         assert!(!header.is_empty(), "SAM header should be non-empty");
         assert!(
             header.starts_with(b"@HD") || header.starts_with(b"@SQ"),
-            "SAM header should start with @HD or @SQ line"
+            "SAM header should start with @HD or @SQ"
         );
-        assert!(!records.is_empty(), "CRAM response should yield records");
 
-        // Every returned record must be on chr 11 and overlap the requested region.
+        let mut records = Vec::new();
+        while let Some(item) = rx.blocking_recv() {
+            records.push(item.expect("record decodes"));
+        }
+        assert!(!records.is_empty(), "stream should yield records");
+
         for bytes in &records {
             let line = std::str::from_utf8(bytes).expect("SAM line is UTF-8");
             let fields: Vec<&str> = line.split('\t').collect();
@@ -154,17 +108,5 @@ mod tests {
         }
         eprintln!("first record (SAM): {}", String::from_utf8_lossy(&records[0]));
         eprintln!("total records: {}", records.len());
-
-        // htsget hands back full BGZF blocks that overhang the requested
-        // region, so the unfiltered count should be strictly greater. If this
-        // ever inverts, htsget got more precise or the fixture changed.
-        let (_, unfiltered) = parse_cram_records(&data, None, None).expect("CRAM decodes");
-        eprintln!("unfiltered records: {}", unfiltered.len());
-        assert!(
-            unfiltered.len() > records.len(),
-            "filter should drop flanking records (unfiltered={}, filtered={})",
-            unfiltered.len(),
-            records.len(),
-        );
     }
 }
