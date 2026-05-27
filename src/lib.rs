@@ -1,12 +1,13 @@
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
+use pyo3::wrap_pymodule;
 mod client;
 mod parse;
 
 #[pyclass]
 pub struct RecordIter {
-    pub records: Vec<Vec<u8>>,
-    pub index: usize,
+    pub(crate) records: Vec<Vec<u8>>,
+    pub(crate) index: usize,
 }
 
 #[pymethods]
@@ -19,10 +20,11 @@ impl RecordIter {
         if slf.index >= slf.records.len() {
             return None;
         }
-        let bytes = slf.records[slf.index].clone();
+        let idx = slf.index;
         slf.index += 1;
+        let bytes = std::mem::take(&mut slf.records[idx]);
         let py = slf.py();
-        Some(PyBytes::new(py, &bytes).into())
+        Some(PyBytes::new_bound(py, &bytes).unbind().into())
     }
 }
 

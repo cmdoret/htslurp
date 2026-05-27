@@ -5,6 +5,10 @@ use noodles::htsget;
 use crate::parse::{parse_bam_records, parse_cram_records};
 use crate::RecordIter;
 
+fn io_err(kind: std::io::ErrorKind, e: impl std::fmt::Display) -> std::io::Error {
+    std::io::Error::new(kind, e.to_string())
+}
+
 fn fetch_bytes(
     base_url: &str,
     id: &str,
@@ -23,13 +27,12 @@ fn fetch_bytes(
     };
     let url = base_url
         .parse()
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("{e}")))?;
+        .map_err(|e| io_err(std::io::ErrorKind::InvalidInput, e))?;
     let client = htsget::Client::new(url);
     let mut request = client.reads(id).set_format(fmt);
     if let Some(r) = region {
         request = request.add_region(
-            r.parse()
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("{e}")))?,
+            r.parse().map_err(|e| io_err(std::io::ErrorKind::InvalidInput, e))?,
         );
     }
     tokio::runtime::Builder::new_current_thread()
@@ -39,13 +42,13 @@ fn fetch_bytes(
             let response = request
                 .send()
                 .await
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{e}")))?;
+                .map_err(|e| io_err(std::io::ErrorKind::Other, e))?;
             let mut chunks = response.chunks();
             let mut buf = Vec::new();
             while let Some(chunk) = chunks
                 .try_next()
                 .await
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{e}")))?
+                .map_err(|e| io_err(std::io::ErrorKind::Other, e))?
             {
                 buf.extend_from_slice(&chunk);
             }
