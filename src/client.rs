@@ -101,10 +101,8 @@ mod tests {
 
         assert!(!data.is_empty(), "htsget response should contain bytes");
 
-        // CRAM parsing may fail without a reference sequence repository — that's
-        // a known gap (see follow-up: add `reference` parameter). For now we
-        // only assert the fetch path works; uncomment once ref handling lands.
-        // let records = parse_cram_records(&data).expect("CRAM decodes");
-        // assert!(!records.is_empty());
+        let records = parse_cram_records(&data).expect("CRAM decodes");
+        assert!(!records.is_empty(), "CRAM response should yield records");
+        eprintln!("first record (SAM): {}", String::from_utf8_lossy(&records[0]));
     }
 }
