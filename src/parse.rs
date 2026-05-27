@@ -2,6 +2,8 @@ use std::path::Path;
 use noodles::{bam, core::Region, cram, fasta, sam};
 use noodles::sam::alignment::io::Write as AlignmentWrite;
 
+pub type Parsed = (Vec<u8>, Vec<Vec<u8>>);
+
 fn record_to_sam_bytes(
     header: &sam::Header,
     record: &impl sam::alignment::Record,
@@ -9,6 +11,13 @@ fn record_to_sam_bytes(
     let mut buf = Vec::new();
     let mut writer = sam::io::Writer::new(&mut buf);
     writer.write_alignment_record(header, record)?;
+    Ok(buf)
+}
+
+fn header_to_sam_bytes(header: &sam::Header) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut buf = Vec::new();
+    let mut writer = sam::io::Writer::new(&mut buf);
+    writer.write_header(header)?;
     Ok(buf)
 }
 
@@ -40,9 +49,10 @@ fn matches_region<R: sam::alignment::Record>(
 pub fn parse_bam_records(
     data: &[u8],
     region: Option<&Region>,
-) -> Result<Vec<Vec<u8>>, Box<dyn std::error::Error>> {
+) -> Result<Parsed, Box<dyn std::error::Error>> {
     let mut reader = bam::io::Reader::new(std::io::Cursor::new(data));
     let header = reader.read_header()?;
+    let header_bytes = header_to_sam_bytes(&header)?;
     let mut out = Vec::new();
     for result in reader.records() {
         let record = result?;
@@ -53,14 +63,14 @@ pub fn parse_bam_records(
         }
         out.push(record_to_sam_bytes(&header, &record)?);
     }
-    Ok(out)
+    Ok((header_bytes, out))
 }
 
 pub fn parse_cram_records(
     data: &[u8],
     reference: Option<&Path>,
     region: Option<&Region>,
-) -> Result<Vec<Vec<u8>>, Box<dyn std::error::Error>> {
+) -> Result<Parsed, Box<dyn std::error::Error>> {
     let repo = match reference {
         Some(path) => fasta::io::indexed_reader::Builder::default()
             .build_from_path(path)
@@ -73,6 +83,7 @@ pub fn parse_cram_records(
         .build_from_reader(std::io::Cursor::new(data));
     reader.read_file_definition()?;
     let header = reader.read_file_header()?;
+    let header_bytes = header_to_sam_bytes(&header)?;
     let mut out = Vec::new();
     for result in reader.records(&header) {
         let record = result?;
@@ -83,5 +94,5 @@ pub fn parse_cram_records(
         }
         out.push(record_to_sam_bytes(&header, &record)?);
     }
-    Ok(out)
+    Ok((header_bytes, out))
 }

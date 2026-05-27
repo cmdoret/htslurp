@@ -4,14 +4,27 @@ use pyo3::wrap_pymodule;
 mod client;
 mod parse;
 
+/// Iterator over alignment records returned by ``stream_records``.
+///
+/// Each item is a ``bytes`` object containing one SAM-format alignment line
+/// (tab-separated, no trailing newline guarantees). The ``header`` attribute
+/// returns the full SAM header as ``bytes`` so callers can reconstruct a
+/// ``pysam.AlignmentHeader`` and parse records with ``AlignedSegment.fromstring``.
 #[pyclass]
 pub struct RecordIter {
+    pub(crate) header: Vec<u8>,
     pub(crate) records: Vec<Vec<u8>>,
     pub(crate) index: usize,
 }
 
 #[pymethods]
 impl RecordIter {
+    /// SAM header text (as ``bytes``) for the records yielded by this iterator.
+    #[getter]
+    fn header<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new_bound(py, &self.header)
+    }
+
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }

@@ -45,6 +45,24 @@ fn fetch_bytes(
         })
 }
 
+/// Stream alignment records from an htsget server.
+///
+/// Fetches a (possibly region-restricted) slice of a BAM/CRAM resource and
+/// returns an iterator yielding one SAM-format alignment line per record.
+/// The SAM header is exposed on the returned iterator's ``header`` attribute.
+///
+/// Args:
+///     base_url: htsget endpoint URL (e.g. ``"https://htsget.ga4gh.org/reads"``).
+///     id: Resource identifier on the server (e.g. ``"giab.NA12878"``).
+///     format: ``"BAM"`` or ``"CRAM"``.
+///     region: Optional genomic region string (e.g. ``"chr1:1000-2000"``).
+///         When set, records that don't overlap are dropped.
+///     reference: Optional path to an indexed FASTA. Required only for CRAMs
+///         that use external reference-based compression.
+///
+/// Returns:
+///     A ``RecordIter`` yielding ``bytes`` (SAM lines). ``RecordIter.header``
+///     is the SAM header as ``bytes``.
 #[pyfunction]
 #[pyo3(signature = (base_url, id, format, region=None, reference=None))]
 pub fn stream_records(
@@ -65,14 +83,18 @@ pub fn stream_records(
         .map_err(|e| PyRuntimeError::new_err(format!("invalid region: {e}")))?;
     let data = fetch_bytes(base_url, id, fmt, parsed_region.as_ref())
         .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
-    let records = match fmt {
+    let (header, records) = match fmt {
         htsget::reads::Format::Cram => {
             parse_cram_records(&data, reference.map(Path::new), parsed_region.as_ref())
         }
         htsget::reads::Format::Bam => parse_bam_records(&data, parsed_region.as_ref()),
     }
     .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
-    Ok(RecordIter { records, index: 0 })
+    Ok(RecordIter {
+        header,
+        records,
+        index: 0,
+    })
 }
 
 #[cfg(test)]
@@ -110,7 +132,13 @@ mod tests {
 
         assert!(!data.is_empty(), "htsget response should contain bytes");
 
-        let records = parse_cram_records(&data, None, Some(&region)).expect("CRAM decodes");
+        let (header, records) =
+            parse_cram_records(&data, None, Some(&region)).expect("CRAM decodes");
+        assert!(!header.is_empty(), "SAM header should be non-empty");
+        assert!(
+            header.starts_with(b"@HD") || header.starts_with(b"@SQ"),
+            "SAM header should start with @HD or @SQ line"
+        );
         assert!(!records.is_empty(), "CRAM response should yield records");
 
         // Every returned record must be on chr 11 and overlap the requested region.
@@ -130,7 +158,7 @@ mod tests {
         // htsget hands back full BGZF blocks that overhang the requested
         // region, so the unfiltered count should be strictly greater. If this
         // ever inverts, htsget got more precise or the fixture changed.
-        let unfiltered = parse_cram_records(&data, None, None).expect("CRAM decodes");
+        let (_, unfiltered) = parse_cram_records(&data, None, None).expect("CRAM decodes");
         eprintln!("unfiltered records: {}", unfiltered.len());
         assert!(
             unfiltered.len() > records.len(),
