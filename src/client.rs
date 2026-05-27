@@ -66,3 +66,45 @@ pub fn stream_records(
     let records = parser(&data).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
     Ok(RecordIter { records, index: 0 })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use testcontainers::{
+        core::{IntoContainerPort, Mount},
+        runners::SyncRunner,
+        GenericImage, ImageExt,
+    };
+
+    // Requires Docker. Run with `cargo test -- --ignored`.
+    #[test]
+    #[ignore]
+    fn cram_round_trip_against_htsget_rs() {
+        let data_dir = std::fs::canonicalize("./data").expect("./data must exist");
+        let _server = GenericImage::new("ghcr.io/umccr/htsget-rs", "dev-94")
+            .with_mapped_port(8080, 8080.tcp())
+            .with_mapped_port(8081, 8081.tcp())
+            .with_mount(Mount::bind_mount(data_dir.to_string_lossy(), "/data"))
+            .start()
+            .expect("htsget-rs container should start");
+        // htsget-rs prints structured logs but startup is ~150ms; give the
+        // workers a moment to bind ports before issuing the first request.
+        std::thread::sleep(std::time::Duration::from_secs(1));
+
+        let data = fetch_bytes(
+            "http://localhost:8080/reads",
+            "data/cram/htsnexus_test_NA12878",
+            htsget::reads::Format::Cram,
+            Some("11:4900000-5000000"),
+        )
+        .expect("fetch_bytes succeeds");
+
+        assert!(!data.is_empty(), "htsget response should contain bytes");
+
+        // CRAM parsing may fail without a reference sequence repository — that's
+        // a known gap (see follow-up: add `reference` parameter). For now we
+        // only assert the fetch path works; uncomment once ref handling lands.
+        // let records = parse_cram_records(&data).expect("CRAM decodes");
+        // assert!(!records.is_empty());
+    }
+}
