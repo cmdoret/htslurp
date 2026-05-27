@@ -1,11 +1,10 @@
+use std::path::Path;
 use pyo3::prelude::*;
 use pyo3::exceptions::PyRuntimeError;
 use futures::TryStreamExt;
 use noodles::htsget;
 use crate::parse::{parse_bam_records, parse_cram_records};
 use crate::RecordIter;
-
-type ParseFn = fn(&[u8]) -> Result<Vec<Vec<u8>>, Box<dyn std::error::Error>>;
 
 fn io_err(kind: std::io::ErrorKind, e: impl std::fmt::Display) -> std::io::Error {
     std::io::Error::new(kind, e.to_string())
@@ -49,21 +48,26 @@ fn fetch_bytes(
 }
 
 #[pyfunction]
-#[pyo3(signature = (base_url, id, format, region=None))]
+#[pyo3(signature = (base_url, id, format, region=None, reference=None))]
 pub fn stream_records(
     base_url: &str,
     id: &str,
     format: &str,
     region: Option<&str>,
+    reference: Option<&str>,
 ) -> PyResult<RecordIter> {
-    let (fmt, parser): (htsget::reads::Format, ParseFn) = match format {
-        "CRAM" => (htsget::reads::Format::Cram, parse_cram_records),
-        "BAM" => (htsget::reads::Format::Bam, parse_bam_records),
+    let fmt = match format {
+        "CRAM" => htsget::reads::Format::Cram,
+        "BAM" => htsget::reads::Format::Bam,
         other => return Err(PyRuntimeError::new_err(format!("unsupported format: {other}"))),
     };
     let data = fetch_bytes(base_url, id, fmt, region)
         .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
-    let records = parser(&data).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+    let records = match fmt {
+        htsget::reads::Format::Cram => parse_cram_records(&data, reference.map(Path::new)),
+        htsget::reads::Format::Bam => parse_bam_records(&data),
+    }
+    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
     Ok(RecordIter { records, index: 0 })
 }
 
@@ -101,7 +105,7 @@ mod tests {
 
         assert!(!data.is_empty(), "htsget response should contain bytes");
 
-        let records = parse_cram_records(&data).expect("CRAM decodes");
+        let records = parse_cram_records(&data, None).expect("CRAM decodes");
         assert!(!records.is_empty(), "CRAM response should yield records");
         eprintln!("first record (SAM): {}", String::from_utf8_lossy(&records[0]));
     }

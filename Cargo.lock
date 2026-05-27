@@ -963,6 +963,7 @@ dependencies = [
  "noodles-bam",
  "noodles-bcf",
  "noodles-cram",
+ "noodles-fasta",
  "noodles-htsget",
  "noodles-sam",
  "noodles-vcf",
