@@ -2,7 +2,7 @@ use std::path::Path;
 use pyo3::prelude::*;
 use pyo3::exceptions::PyRuntimeError;
 use futures::TryStreamExt;
-use noodles::htsget;
+use noodles::{core::Region, htsget};
 use crate::parse::{parse_bam_records, parse_cram_records};
 use crate::RecordIter;
 
@@ -14,7 +14,7 @@ fn fetch_bytes(
     base_url: &str,
     id: &str,
     format: htsget::reads::Format,
-    region: Option<&str>,
+    region: Option<&Region>,
 ) -> Result<Vec<u8>, std::io::Error> {
     let url = base_url
         .parse()
@@ -22,9 +22,7 @@ fn fetch_bytes(
     let client = htsget::Client::new(url);
     let mut request = client.reads(id).set_format(format);
     if let Some(r) = region {
-        request = request.add_region(
-            r.parse().map_err(|e| io_err(std::io::ErrorKind::InvalidInput, e))?,
-        );
+        request = request.add_region(r.clone());
     }
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -61,11 +59,17 @@ pub fn stream_records(
         "BAM" => htsget::reads::Format::Bam,
         other => return Err(PyRuntimeError::new_err(format!("unsupported format: {other}"))),
     };
-    let data = fetch_bytes(base_url, id, fmt, region)
+    let parsed_region: Option<Region> = region
+        .map(|s| s.parse::<Region>())
+        .transpose()
+        .map_err(|e| PyRuntimeError::new_err(format!("invalid region: {e}")))?;
+    let data = fetch_bytes(base_url, id, fmt, parsed_region.as_ref())
         .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
     let records = match fmt {
-        htsget::reads::Format::Cram => parse_cram_records(&data, reference.map(Path::new)),
-        htsget::reads::Format::Bam => parse_bam_records(&data),
+        htsget::reads::Format::Cram => {
+            parse_cram_records(&data, reference.map(Path::new), parsed_region.as_ref())
+        }
+        htsget::reads::Format::Bam => parse_bam_records(&data, parsed_region.as_ref()),
     }
     .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
     Ok(RecordIter { records, index: 0 })
@@ -95,18 +99,44 @@ mod tests {
         // workers a moment to bind ports before issuing the first request.
         std::thread::sleep(std::time::Duration::from_secs(1));
 
+        let region: Region = "11:4900000-5000000".parse().expect("region parses");
         let data = fetch_bytes(
             "http://localhost:8080/reads",
             "data/cram/htsnexus_test_NA12878",
             htsget::reads::Format::Cram,
-            Some("11:4900000-5000000"),
+            Some(&region),
         )
         .expect("fetch_bytes succeeds");
 
         assert!(!data.is_empty(), "htsget response should contain bytes");
 
-        let records = parse_cram_records(&data, None).expect("CRAM decodes");
+        let records = parse_cram_records(&data, None, Some(&region)).expect("CRAM decodes");
         assert!(!records.is_empty(), "CRAM response should yield records");
+
+        // Every returned record must be on chr 11 and overlap the requested region.
+        for bytes in &records {
+            let line = std::str::from_utf8(bytes).expect("SAM line is UTF-8");
+            let fields: Vec<&str> = line.split('\t').collect();
+            assert_eq!(fields[2], "11", "RNAME should be 11, got {}", fields[2]);
+            let pos: u32 = fields[3].parse().expect("POS is integer");
+            assert!(
+                pos < 5_000_000,
+                "POS {pos} should start before region end (overlap, not after)"
+            );
+        }
         eprintln!("first record (SAM): {}", String::from_utf8_lossy(&records[0]));
+        eprintln!("total records: {}", records.len());
+
+        // htsget hands back full BGZF blocks that overhang the requested
+        // region, so the unfiltered count should be strictly greater. If this
+        // ever inverts, htsget got more precise or the fixture changed.
+        let unfiltered = parse_cram_records(&data, None, None).expect("CRAM decodes");
+        eprintln!("unfiltered records: {}", unfiltered.len());
+        assert!(
+            unfiltered.len() > records.len(),
+            "filter should drop flanking records (unfiltered={}, filtered={})",
+            unfiltered.len(),
+            records.len(),
+        );
     }
 }
