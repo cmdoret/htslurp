@@ -1,6 +1,5 @@
-from .htslurp import *
+from .htslurp import htsget_client
 
+stream_records = htsget_client.stream_records
 
-__doc__ = htslurp.__doc__
-if hasattr(htslurp, "__all__"):
-    __all__ = htslurp.__all__
+__all__ = ["stream_records"]

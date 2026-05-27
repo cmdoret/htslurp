@@ -1,40 +1,73 @@
 use pyo3::prelude::*;
-use io::Error;
+use pyo3::exceptions::PyRuntimeError;
 use futures::TryStreamExt;
-use tokio::io::{self, AsyncWriteExt};
-use noodles::htsget as htsget;
+use noodles::htsget;
+use crate::parse::{parse_bam_records, parse_cram_records};
+use crate::RecordIter;
 
-// e.g. stream("http://localhost/htsget", "dir/file", "chr1:123-4541")
-#[pyfunction]
-pub fn stream(base_url: &str, id: &str, region: &str) -> Result<(), Error>{
-    let format = htsget::reads::Format::Cram;
-    let url = base_url.parse().unwrap();
+fn fetch_bytes(
+    base_url: &str,
+    id: &str,
+    format: &str,
+    region: Option<&str>,
+) -> Result<Vec<u8>, std::io::Error> {
+    let fmt = match format {
+        "CRAM" => htsget::reads::Format::Cram,
+        "BAM" => htsget::reads::Format::Bam,
+        other => {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("unsupported format: {other}"),
+            ))
+        }
+    };
+    let url = base_url
+        .parse()
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("{e}")))?;
     let client = htsget::Client::new(url);
-    // TODO: generic on variants and reads
-    let mut request = client.reads(id);
-    request = request.set_format(format);
-
+    let mut request = client.reads(id).set_format(fmt);
+    if let Some(r) = region {
+        request = request.add_region(
+            r.parse()
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("{e}")))?,
+        );
+    }
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
-        .build()
-        .unwrap()
+        .build()?
         .block_on(async {
-            request = request.add_region(region.parse().expect("invalid region"));
-            let response = request.send().await.expect("request failed");
+            let response = request
+                .send()
+                .await
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{e}")))?;
             let mut chunks = response.chunks();
-            let mut stdout = io::stdout();
-
-            while let Some(chunk) = chunks.try_next().await.expect("can't load chunk") {
-                stdout.write_all(&chunk).await.expect("can't write");
+            let mut buf = Vec::new();
+            while let Some(chunk) = chunks
+                .try_next()
+                .await
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{e}")))?
+            {
+                buf.extend_from_slice(&chunk);
             }
-        });
-
-
-    Ok(())
+            Ok(buf)
+        })
 }
 
-#[pymodule]
-pub fn client(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(stream, m)?)?;
-    Ok(())
+#[pyfunction]
+#[pyo3(signature = (base_url, id, format, region=None))]
+pub fn stream_records(
+    base_url: &str,
+    id: &str,
+    format: &str,
+    region: Option<&str>,
+) -> PyResult<RecordIter> {
+    let data = fetch_bytes(base_url, id, format, region)
+        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+    let records = match format {
+        "CRAM" => parse_cram_records(&data),
+        "BAM" => parse_bam_records(&data),
+        other => return Err(PyRuntimeError::new_err(format!("unsupported format: {other}"))),
+    }
+    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+    Ok(RecordIter { records, index: 0 })
 }

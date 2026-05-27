@@ -1,8 +1,6 @@
 set positional-arguments
 set shell := ["bash", "-cue"]
 root := justfile_directory()
-src := "./src/modos.typ"
-pdf := "./build/modos.pdf"
 
 
 # build wheel
