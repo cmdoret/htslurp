@@ -61,10 +61,48 @@ mod tests {
         GenericImage, ImageExt,
     };
 
+    fn assert_region_records(
+        label: &str,
+        header: &[u8],
+        rx: &mut crate::stream::RecordRx,
+    ) {
+        assert!(!header.is_empty(), "{label}: SAM header should be non-empty");
+        assert!(
+            header.starts_with(b"@HD") || header.starts_with(b"@SQ"),
+            "{label}: SAM header should start with @HD or @SQ"
+        );
+
+        let mut records = Vec::new();
+        while let Some(item) = rx.blocking_recv() {
+            records.push(item.unwrap_or_else(|e| panic!("{label}: record error: {e}")));
+        }
+        assert!(!records.is_empty(), "{label}: stream should yield records");
+
+        for bytes in &records {
+            let line = std::str::from_utf8(bytes).expect("SAM line is UTF-8");
+            let fields: Vec<&str> = line.split('\t').collect();
+            assert_eq!(fields[2], "11", "{label}: RNAME should be 11, got {}", fields[2]);
+            let pos: u32 = fields[3].parse().expect("POS is integer");
+            assert!(
+                pos < 5_000_000,
+                "{label}: POS {pos} should start before region end (overlap, not after)"
+            );
+        }
+        eprintln!("[{label}] total records: {}", records.len());
+        eprintln!(
+            "[{label}] first record: {}",
+            String::from_utf8_lossy(&records[0])
+        );
+    }
+
     // Requires Docker. Run with `cargo test -- --ignored`.
+    // Exercises both BAM and CRAM streaming paths against the umccr htsget-rs
+    // reference server. Kept as a single test so the two formats can share one
+    // container (testcontainers pins host ports 8080/8081, so parallel tests
+    // would conflict).
     #[test]
     #[ignore]
-    fn cram_round_trip_against_htsget_rs() {
+    fn streaming_against_htsget_rs() {
         let data_dir = std::fs::canonicalize("./data").expect("./data must exist");
         let _server = GenericImage::new("ghcr.io/umccr/htsget-rs", "dev-94")
             .with_mapped_port(8080, 8080.tcp())
@@ -75,38 +113,27 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_secs(1));
 
         let region: Region = "11:4900000-5000000".parse().expect("region parses");
+
+        // CRAM path
         let (header, mut rx) = start_stream(
             "http://localhost:8080/reads".to_string(),
             "data/cram/htsnexus_test_NA12878".to_string(),
             htsget::reads::Format::Cram,
+            Some(region.clone()),
+            None,
+        )
+        .expect("CRAM stream starts");
+        assert_region_records("CRAM", &header, &mut rx);
+
+        // BAM path (same dataset, converted upstream via samtools)
+        let (header, mut rx) = start_stream(
+            "http://localhost:8080/reads".to_string(),
+            "data/bam/htsnexus_test_NA12878".to_string(),
+            htsget::reads::Format::Bam,
             Some(region),
             None,
         )
-        .expect("stream starts");
-
-        assert!(!header.is_empty(), "SAM header should be non-empty");
-        assert!(
-            header.starts_with(b"@HD") || header.starts_with(b"@SQ"),
-            "SAM header should start with @HD or @SQ"
-        );
-
-        let mut records = Vec::new();
-        while let Some(item) = rx.blocking_recv() {
-            records.push(item.expect("record decodes"));
-        }
-        assert!(!records.is_empty(), "stream should yield records");
-
-        for bytes in &records {
-            let line = std::str::from_utf8(bytes).expect("SAM line is UTF-8");
-            let fields: Vec<&str> = line.split('\t').collect();
-            assert_eq!(fields[2], "11", "RNAME should be 11, got {}", fields[2]);
-            let pos: u32 = fields[3].parse().expect("POS is integer");
-            assert!(
-                pos < 5_000_000,
-                "POS {pos} should start before region end (overlap, not after)"
-            );
-        }
-        eprintln!("first record (SAM): {}", String::from_utf8_lossy(&records[0]));
-        eprintln!("total records: {}", records.len());
+        .expect("BAM stream starts");
+        assert_region_records("BAM", &header, &mut rx);
     }
 }
