@@ -8,6 +8,12 @@ pub(crate) fn record_to_sam_bytes(
     let mut buf = Vec::new();
     let mut writer = sam::io::Writer::new(&mut buf);
     writer.write_alignment_record(header, record)?;
+    // noodles terminates each record with '\n'; drop it so callers get one
+    // clean SAM line (a trailing newline dirties split('\t')[-1] and is
+    // rejected by pysam.AlignedSegment.fromstring).
+    if buf.last() == Some(&b'\n') {
+        buf.pop();
+    }
     Ok(buf)
 }
 
@@ -42,4 +48,24 @@ pub(crate) fn matches_region<R: sam::alignment::Record>(
         return false;
     };
     region.interval().intersects((start..=end).into())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use noodles::sam::alignment::RecordBuf;
+
+    #[test]
+    fn record_to_sam_bytes_omits_trailing_newline() {
+        let header = sam::Header::default();
+        let record = RecordBuf::default();
+        let bytes = record_to_sam_bytes(&header, &record).unwrap();
+        assert!(!bytes.is_empty(), "record bytes should be non-empty");
+        assert!(
+            !bytes.ends_with(b"\n"),
+            "record bytes must not end with a newline (it would dirty split('\\t')[-1] \
+             and break pysam.AlignedSegment.fromstring); got {:?}",
+            String::from_utf8_lossy(&bytes)
+        );
+    }
 }

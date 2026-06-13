@@ -26,6 +26,7 @@ use crate::RecordIter;
 #[pyfunction]
 #[pyo3(signature = (base_url, id, format, region=None, reference=None))]
 pub fn stream_records(
+    py: Python<'_>,
     base_url: &str,
     id: &str,
     format: &str,
@@ -41,14 +42,15 @@ pub fn stream_records(
         .map(|s| s.parse::<Region>())
         .transpose()
         .map_err(|e| PyRuntimeError::new_err(format!("invalid region: {e}")))?;
-    let (header, rx) = start_stream(
-        base_url.to_string(),
-        id.to_string(),
-        fmt,
-        parsed_region,
-        reference.map(PathBuf::from),
-    )
-    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+    let base_url = base_url.to_string();
+    let id = id.to_string();
+    let reference = reference.map(PathBuf::from);
+    // start_stream blocks until the worker has fetched and decoded the header
+    // (a full network round-trip). Release the GIL so other Python threads
+    // aren't frozen for the duration.
+    let (header, rx) = py
+        .allow_threads(move || start_stream(base_url, id, fmt, parsed_region, reference))
+        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
     Ok(RecordIter { header, rx })
 }
 

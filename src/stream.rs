@@ -100,6 +100,9 @@ where
 
     let mut records = reader.records();
     while let Some(record) = records.next().await {
+        // A decode error is terminal: the binary stream is likely desynced, so
+        // we surface the error (it reaches Python as a raised exception) and
+        // stop rather than emit garbage from later offsets.
         let record = record?;
         if let Some(r) = region {
             if !matches_region(&record, &header, r) {
@@ -140,6 +143,9 @@ where
 
     let mut records = reader.records(&repo, &header);
     while let Some(record) = records.next().await {
+        // A decode error is terminal: the binary stream is likely desynced, so
+        // we surface the error (it reaches Python as a raised exception) and
+        // stop rather than emit garbage from later offsets.
         let record = record?;
         if let Some(r) = region {
             if !matches_region(&record, &header, r) {
