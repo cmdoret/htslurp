@@ -1,3 +1,9 @@
+# agents
+AGENTS.md
+.agents/
+CLAUDE.md
+.claude
+
 /target
 .devenv/
 .direnv/
