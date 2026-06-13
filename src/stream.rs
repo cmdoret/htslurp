@@ -37,9 +37,7 @@ pub fn start_stream(
         };
         runtime.block_on(async move {
             if let Err(e) = run(base_url, id, format, region, reference, &tx).await {
-                let _ = tx
-                    .send(Err(io::Error::other(e.to_string())))
-                    .await;
+                let _ = tx.send(Err(io::Error::other(e.to_string()))).await;
             }
         });
     });
@@ -71,8 +69,9 @@ async fn run(
     let response = request.send().await?;
 
     // chunks() borrows from response, so response must live for the whole call.
-    let chunks =
-        response.chunks().map_err(|e| io::Error::other(e.to_string()));
+    let chunks = response
+        .chunks()
+        .map_err(|e| io::Error::other(e.to_string()));
     let async_read = StreamReader::new(chunks);
 
     match format {

@@ -1,9 +1,9 @@
-use std::path::PathBuf;
-use pyo3::prelude::*;
-use pyo3::exceptions::PyRuntimeError;
-use noodles::{core::Region, htsget};
 use crate::stream::start_stream;
 use crate::RecordIter;
+use noodles::{core::Region, htsget};
+use pyo3::exceptions::PyRuntimeError;
+use pyo3::prelude::*;
+use std::path::PathBuf;
 
 /// Stream alignment records from an htsget server.
 ///
@@ -36,7 +36,11 @@ pub fn stream_records(
     let fmt = match format {
         "CRAM" => htsget::reads::Format::Cram,
         "BAM" => htsget::reads::Format::Bam,
-        other => return Err(PyRuntimeError::new_err(format!("unsupported format: {other}"))),
+        other => {
+            return Err(PyRuntimeError::new_err(format!(
+                "unsupported format: {other}"
+            )))
+        }
     };
     let parsed_region: Option<Region> = region
         .map(|s| s.parse::<Region>())
@@ -63,12 +67,11 @@ mod tests {
         GenericImage, ImageExt,
     };
 
-    fn assert_region_records(
-        label: &str,
-        header: &[u8],
-        rx: &mut crate::stream::RecordRx,
-    ) {
-        assert!(!header.is_empty(), "{label}: SAM header should be non-empty");
+    fn assert_region_records(label: &str, header: &[u8], rx: &mut crate::stream::RecordRx) {
+        assert!(
+            !header.is_empty(),
+            "{label}: SAM header should be non-empty"
+        );
         assert!(
             header.starts_with(b"@HD") || header.starts_with(b"@SQ"),
             "{label}: SAM header should start with @HD or @SQ"
@@ -88,7 +91,11 @@ mod tests {
                 "{label}: SAM line should have 11+ fields, got {}: {line:?}",
                 fields.len()
             );
-            assert_eq!(fields[2], "11", "{label}: RNAME should be 11, got {}", fields[2]);
+            assert_eq!(
+                fields[2], "11",
+                "{label}: RNAME should be 11, got {}",
+                fields[2]
+            );
             let pos: u32 = fields[3].parse().expect("POS is integer");
             assert!(
                 pos < 5_000_000,

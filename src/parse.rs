@@ -1,5 +1,5 @@
-use noodles::{core::Region, sam};
 use noodles::sam::alignment::io::Write as AlignmentWrite;
+use noodles::{core::Region, sam};
 
 pub(crate) fn record_to_sam_bytes(
     header: &sam::Header,
@@ -45,8 +45,7 @@ pub(crate) fn matches_region<R: sam::alignment::Record>(
     // Records without a resolvable start/end (e.g. placed-but-unmapped reads)
     // are dropped rather than included: we can't position them against the
     // interval. This is a deliberate policy, not a missed edge case.
-    let (Some(Ok(start)), Some(Ok(end))) =
-        (record.alignment_start(), record.alignment_end())
+    let (Some(Ok(start)), Some(Ok(end))) = (record.alignment_start(), record.alignment_end())
     else {
         return false;
     };
