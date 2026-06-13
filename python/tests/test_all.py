@@ -1,4 +1,5 @@
 import pytest
+
 import htslurp
 
 
@@ -7,5 +8,5 @@ def test_module_importable():
 
 
 def test_stream_records_bad_url_raises():
-    with pytest.raises(Exception):
+    with pytest.raises(RuntimeError):
         list(htslurp.stream_records("http://localhost:1", "nonexistent", "CRAM"))
