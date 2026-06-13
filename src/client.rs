@@ -83,6 +83,11 @@ mod tests {
         for bytes in &records {
             let line = std::str::from_utf8(bytes).expect("SAM line is UTF-8");
             let fields: Vec<&str> = line.split('\t').collect();
+            assert!(
+                fields.len() >= 11,
+                "{label}: SAM line should have 11+ fields, got {}: {line:?}",
+                fields.len()
+            );
             assert_eq!(fields[2], "11", "{label}: RNAME should be 11, got {}", fields[2]);
             let pos: u32 = fields[3].parse().expect("POS is integer");
             assert!(
