@@ -28,17 +28,9 @@ pub fn start_stream(
     let (tx, mut rx) = mpsc::channel::<io::Result<Vec<u8>>>(BUFFER);
 
     thread::spawn(move || {
-        let runtime = match TokioBuilder::new_current_thread().enable_all().build() {
-            Ok(r) => r,
-            Err(e) => {
-                let _ = tx.blocking_send(Err(e));
-                return;
-            }
-        };
-        runtime.block_on(async move {
-            if let Err(e) = run(base_url, id, format, region, reference, &tx).await {
-                let _ = tx.send(Err(io::Error::other(e.to_string()))).await;
-            }
+        run_to_channel(tx, move |tx| {
+            let runtime = TokioBuilder::new_current_thread().enable_all().build()?;
+            runtime.block_on(run(base_url, id, format, region, reference, tx))
         });
     });
 
@@ -49,6 +41,29 @@ pub fn start_stream(
         None => Err(io::Error::other(
             "worker thread closed channel before sending header",
         )),
+    }
+}
+
+/// Run the worker `body`, forwarding its outcome to `tx`. A panic is converted
+/// into a terminal channel error; otherwise the worker thread would simply die,
+/// `rx` would see a clean close, and the consumer would read a silently
+/// truncated stream as if it had completed successfully.
+fn run_to_channel<F>(tx: mpsc::Sender<io::Result<Vec<u8>>>, body: F)
+where
+    F: FnOnce(&mpsc::Sender<io::Result<Vec<u8>>>) -> Result<(), Box<dyn std::error::Error>>,
+{
+    // AssertUnwindSafe: on a panic we only send a terminal error and drop tx,
+    // so we never observe any broken invariant of the captured state.
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| body(&tx))) {
+        Ok(Ok(())) => {}
+        Ok(Err(e)) => {
+            let _ = tx.blocking_send(Err(io::Error::other(e.to_string())));
+        }
+        Err(_) => {
+            let _ = tx.blocking_send(Err(io::Error::other(
+                "worker thread panicked while streaming",
+            )));
+        }
     }
 }
 
@@ -157,4 +172,25 @@ where
 
     let filter = region.map(|r| RegionFilter::new(&header, r));
     forward_records(reader.records(&repo, &header), &header, filter.as_ref(), tx).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn run_to_channel_converts_panic_into_terminal_error() {
+        let (tx, mut rx) = mpsc::channel::<io::Result<Vec<u8>>>(8);
+        run_to_channel(tx, |_tx| panic!("decode blew up"));
+        match rx.blocking_recv() {
+            Some(Err(e)) => assert!(
+                e.to_string().contains("panic"),
+                "a worker panic should reach the consumer as an error, got: {e}"
+            ),
+            other => panic!(
+                "a worker panic must not look like a clean end-of-stream; \
+                 expected Some(Err(..)), got {other:?}"
+            ),
+        }
+    }
 }
