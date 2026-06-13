@@ -63,10 +63,13 @@
               env = {
                 # NixOS: never let uv download a prebuilt interpreter. Those are
                 # dynamically linked against an FHS loader (/lib64/ld-linux...)
-                # that does not exist on NixOS, so they fail to run. Force uv to
-                # use the devenv CPython instead.
+                # that does not exist on NixOS, so they fail to run. With this
+                # off, uv installs into the active venv (VIRTUAL_ENV).
+                #
+                # Do NOT set UV_PYTHON: it outranks VIRTUAL_ENV in uv's
+                # interpreter search, so uv would target the immutable
+                # /nix/store interpreter and fail with "externally managed".
                 UV_PYTHON_DOWNLOADS = "never";
-                UV_PYTHON = "${pkgs.python312}/bin/python3.12";
 
                 # OpenSSL for crates that link openssl-sys (noodles-htsget pulls
                 # in reqwest, which may link against it).
