@@ -12,13 +12,15 @@ use crate::parse::{header_to_sam_bytes, record_to_sam_bytes, RegionFilter};
 
 const BUFFER: usize = 256;
 
-pub type RecordRx = mpsc::Receiver<io::Result<Vec<u8>>>;
+/// Receiver half handed to `RecordIter`: each item is one SAM-format record
+/// (or a terminal error). Internal to the crate.
+pub(crate) type RecordRx = mpsc::Receiver<io::Result<Vec<u8>>>;
 
 /// Spawn a worker thread that fetches and decodes alignments from htsget,
 /// returning the SAM header bytes and a receiver that yields one SAM-format
 /// record per recv. The channel closes when the stream is exhausted; an
 /// `Err` item indicates a mid-stream decode/transport error.
-pub fn start_stream(
+pub(crate) fn start_stream(
     base_url: String,
     id: String,
     format: htsget::reads::Format,
