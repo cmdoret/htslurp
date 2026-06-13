@@ -31,6 +31,7 @@
               packages = with pkgs; [
                 just
                 maturin
+                ruff
                 uv
                 pkg-config
                 openssl

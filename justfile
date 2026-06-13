@@ -16,13 +16,15 @@ build *args:
 develop *args:
     maturin develop --uv {{args}}
 
-# Format Rust sources.
+# Format Rust and Python sources.
 format *args:
     cargo fmt {{args}}
+    ruff format python {{args}}
 
-# Lint Rust sources with clippy.
+# Lint Rust (clippy) and Python (ruff) sources.
 lint *args:
     cargo clippy --all-targets {{args}}
+    ruff check python {{args}}
 
 # Run the Rust test suite (the Docker integration test stays #[ignore]d).
 test *args:
