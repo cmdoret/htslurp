@@ -28,11 +28,11 @@
                 let pwd = builtins.getEnv "PWD"; in
                 if pwd != "" then pwd else builtins.toString ../..;
 
+              # uv is provided by languages.python.uv below, not here.
               packages = with pkgs; [
                 just
                 maturin
                 ruff
-                uv
                 pkg-config
                 openssl
                 openssl.dev
@@ -44,14 +44,32 @@
                 components = [ "rustc" "cargo" "clippy" "rustfmt" "rust-analyzer" ];
               };
 
+              # Create and activate a .venv from the nix-provided CPython, with
+              # uv for installs. maturin develop installs the extension into
+              # this venv (VIRTUAL_ENV); pytest is preinstalled so `just test`
+              # works without a manual install step.
               languages.python = {
                 enable = true;
                 package = pkgs.python312;
+                venv = {
+                  enable = true;
+                  requirements = ''
+                    pytest
+                  '';
+                };
+                uv.enable = true;
               };
 
-              # OpenSSL env vars for crates that use the openssl-sys crate
-              # (noodles-htsget pulls in reqwest which may link against it)
               env = {
+                # NixOS: never let uv download a prebuilt interpreter. Those are
+                # dynamically linked against an FHS loader (/lib64/ld-linux...)
+                # that does not exist on NixOS, so they fail to run. Force uv to
+                # use the devenv CPython instead.
+                UV_PYTHON_DOWNLOADS = "never";
+                UV_PYTHON = "${pkgs.python312}/bin/python3.12";
+
+                # OpenSSL for crates that link openssl-sys (noodles-htsget pulls
+                # in reqwest, which may link against it).
                 OPENSSL_DIR = "${pkgs.openssl.dev}";
                 OPENSSL_LIB_DIR = "${pkgs.openssl.out}/lib";
               };
