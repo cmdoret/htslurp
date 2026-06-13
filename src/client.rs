@@ -53,7 +53,7 @@ pub fn stream_records(
     // (a full network round-trip). Release the GIL so other Python threads
     // aren't frozen for the duration.
     let (header, rx) = py
-        .allow_threads(move || start_stream(base_url, id, fmt, parsed_region, reference))
+        .detach(move || start_stream(base_url, id, fmt, parsed_region, reference))
         .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
     Ok(RecordIter { header, rx })
 }

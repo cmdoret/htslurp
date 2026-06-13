@@ -25,21 +25,21 @@ impl RecordIter {
     /// SAM header text (as ``bytes``) for the records yielded by this iterator.
     #[getter]
     fn header<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
-        PyBytes::new_bound(py, &self.header)
+        PyBytes::new(py, &self.header)
     }
 
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
 
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> PyResult<Option<PyObject>> {
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> PyResult<Option<Py<PyAny>>> {
         let py = slf.py();
         // Pull rx out of the PyRefMut so the closure captures only a `Send`
         // reference, not the whole non-Send PyRefMut.
         let rx = &mut slf.rx;
-        let item = py.allow_threads(move || rx.blocking_recv());
+        let item = py.detach(move || rx.blocking_recv());
         match item {
-            Some(Ok(bytes)) => Ok(Some(PyBytes::new_bound(py, &bytes).unbind().into())),
+            Some(Ok(bytes)) => Ok(Some(PyBytes::new(py, &bytes).unbind().into())),
             Some(Err(e)) => Err(PyRuntimeError::new_err(e.to_string())),
             None => Ok(None),
         }
