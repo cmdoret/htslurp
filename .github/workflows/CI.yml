@@ -19,23 +19,21 @@ permissions:
   contents: read
 
 jobs:
+  # Manually trimmed from the maturin-generated matrix: `ring` (via
+  # reqwest/rustls, pulled in by noodles-htsget) ships ARM/exotic assembly that
+  # will not cross-compile in the manylinux container. So aarch64 builds on a
+  # native ARM runner, and the cross-only arches (x86/armv7/s390x/ppc64le) are
+  # dropped. Re-running `maturin generate-ci` will overwrite this.
   linux:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
+      fail-fast: false
       matrix:
         platform:
           - runner: ubuntu-latest
             target: x86_64
-          - runner: ubuntu-latest
-            target: x86
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04-arm
             target: aarch64
-          - runner: ubuntu-latest
-            target: armv7
-          - runner: ubuntu-latest
-            target: s390x
-          - runner: ubuntu-latest
-            target: ppc64le
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -54,19 +52,18 @@ jobs:
           name: wheels-linux-${{ matrix.platform.target }}
           path: dist
 
+  # Same trim as the linux job above (native ARM runner for aarch64, exotic
+  # cross targets dropped).
   musllinux:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
+      fail-fast: false
       matrix:
         platform:
           - runner: ubuntu-latest
             target: x86_64
-          - runner: ubuntu-latest
-            target: x86
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04-arm
             target: aarch64
-          - runner: ubuntu-latest
-            target: armv7
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
