@@ -19,11 +19,11 @@ permissions:
   contents: read
 
 jobs:
-  # Manually trimmed from the maturin-generated matrix: `ring` (via
-  # reqwest/rustls, pulled in by noodles-htsget) ships ARM/exotic assembly that
-  # will not cross-compile in the manylinux container. So aarch64 builds on a
-  # native ARM runner, and the cross-only arches (x86/armv7/s390x/ppc64le) are
-  # dropped. Re-running `maturin generate-ci` will overwrite this.
+  # Manual change:
+  # Dropped cross-only arches (x86/armv7/s390x/ppc64le) -> native builder.
+  # Because ring, pulled in by noodles-htsget, ships ARM/exotic assembly that
+  # will not cross-compile in the manylinux container.
+  # Re-running `maturin generate-ci` will overwrite this.
   linux:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
@@ -52,8 +52,7 @@ jobs:
           name: wheels-linux-${{ matrix.platform.target }}
           path: dist
 
-  # Same trim as the linux job above (native ARM runner for aarch64, exotic
-  # cross targets dropped).
+  # native ARM runner for aarch64, cross targets dropped.
   musllinux:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
@@ -115,8 +114,6 @@ jobs:
       fail-fast: false
       matrix:
         platform:
-          # macos-12 (from the maturin v1.7.0 template) was retired by GitHub;
-          # macos-13 is the current Intel image, macos-14 is Apple Silicon.
           - runner: macos-13
             target: x86_64
           - runner: macos-14
