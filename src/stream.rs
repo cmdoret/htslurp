@@ -8,7 +8,7 @@ use tokio::runtime::Builder as TokioBuilder;
 use tokio::sync::mpsc;
 use tokio_util::io::StreamReader;
 
-use crate::parse::{header_to_sam_bytes, matches_region, record_to_sam_bytes};
+use crate::parse::{header_to_sam_bytes, record_to_sam_bytes, RegionFilter};
 
 const BUFFER: usize = 256;
 
@@ -82,6 +82,37 @@ async fn run(
     }
 }
 
+// Decode each record, drop those outside `filter`, and forward the SAM-encoded
+// bytes. The BAM and CRAM paths differ only in reader setup; this is their
+// shared loop.
+async fn forward_records<S, R>(
+    mut records: S,
+    header: &sam::Header,
+    filter: Option<&RegionFilter>,
+    tx: &mpsc::Sender<io::Result<Vec<u8>>>,
+) -> Result<(), Box<dyn std::error::Error>>
+where
+    S: futures::Stream<Item = io::Result<R>> + Unpin,
+    R: sam::alignment::Record,
+{
+    while let Some(record) = records.next().await {
+        // A decode error is terminal: the binary stream is likely desynced, so
+        // we surface the error (it reaches Python as a raised exception) and
+        // stop rather than emit garbage from later offsets.
+        let record = record?;
+        if let Some(filter) = filter {
+            if !filter.matches(&record, header) {
+                continue;
+            }
+        }
+        let bytes = record_to_sam_bytes(header, &record)?;
+        if tx.send(Ok(bytes)).await.is_err() {
+            return Ok(());
+        }
+    }
+    Ok(())
+}
+
 async fn stream_bam<R>(
     inner: R,
     region: Option<&Region>,
@@ -96,23 +127,8 @@ where
         return Ok(());
     }
 
-    let mut records = reader.records();
-    while let Some(record) = records.next().await {
-        // A decode error is terminal: the binary stream is likely desynced, so
-        // we surface the error (it reaches Python as a raised exception) and
-        // stop rather than emit garbage from later offsets.
-        let record = record?;
-        if let Some(r) = region {
-            if !matches_region(&record, &header, r) {
-                continue;
-            }
-        }
-        let bytes = record_to_sam_bytes(&header, &record)?;
-        if tx.send(Ok(bytes)).await.is_err() {
-            return Ok(());
-        }
-    }
-    Ok(())
+    let filter = region.map(|r| RegionFilter::new(&header, r));
+    forward_records(reader.records(), &header, filter.as_ref(), tx).await
 }
 
 async fn stream_cram<R>(
@@ -139,21 +155,6 @@ where
         return Ok(());
     }
 
-    let mut records = reader.records(&repo, &header);
-    while let Some(record) = records.next().await {
-        // A decode error is terminal: the binary stream is likely desynced, so
-        // we surface the error (it reaches Python as a raised exception) and
-        // stop rather than emit garbage from later offsets.
-        let record = record?;
-        if let Some(r) = region {
-            if !matches_region(&record, &header, r) {
-                continue;
-            }
-        }
-        let bytes = record_to_sam_bytes(&header, &record)?;
-        if tx.send(Ok(bytes)).await.is_err() {
-            return Ok(());
-        }
-    }
-    Ok(())
+    let filter = region.map(|r| RegionFilter::new(&header, r));
+    forward_records(reader.records(&repo, &header), &header, filter.as_ref(), tx).await
 }
