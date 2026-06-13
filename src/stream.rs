@@ -38,7 +38,7 @@ pub fn start_stream(
         runtime.block_on(async move {
             if let Err(e) = run(base_url, id, format, region, reference, &tx).await {
                 let _ = tx
-                    .send(Err(io::Error::new(io::ErrorKind::Other, e.to_string())))
+                    .send(Err(io::Error::other(e.to_string())))
                     .await;
             }
         });
@@ -48,8 +48,7 @@ pub fn start_stream(
     match rx.blocking_recv() {
         Some(Ok(h)) => Ok((h, rx)),
         Some(Err(e)) => Err(e),
-        None => Err(io::Error::new(
-            io::ErrorKind::Other,
+        None => Err(io::Error::other(
             "worker thread closed channel before sending header",
         )),
     }
@@ -73,7 +72,7 @@ async fn run(
 
     // chunks() borrows from response, so response must live for the whole call.
     let chunks =
-        response.chunks().map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()));
+        response.chunks().map_err(|e| io::Error::other(e.to_string()));
     let async_read = StreamReader::new(chunks);
 
     match format {
