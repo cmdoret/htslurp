@@ -26,10 +26,15 @@ lint *args:
     cargo clippy --all-targets {{args}}
     ruff check python {{args}}
 
+# Run the full test suite (Rust and Python).
+test: test-rust test-python
+
 # Run the Rust test suite (the Docker integration test stays #[ignore]d).
-test *args:
+[private]
+test-rust *args:
     cargo test {{args}}
 
 # Run the Python test suite (run `just develop` first to install the extension).
-test-py *args:
+[private]
+test-python *args:
     pytest {{args}}
