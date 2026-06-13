@@ -76,7 +76,32 @@ impl RegionFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use noodles::core::Position;
+    use noodles::sam::alignment::record::cigar::{op::Kind, Op};
+    use noodles::sam::alignment::record_buf::Cigar;
     use noodles::sam::alignment::RecordBuf;
+    use noodles::sam::header::record::value::{map::ReferenceSequence, Map};
+    use proptest::prelude::*;
+    use std::num::NonZeroUsize;
+
+    // A header with two references, "11" at index 0 and "12" at index 1.
+    fn header_with_refs() -> sam::Header {
+        let len = NonZeroUsize::new(1_000_000).unwrap();
+        sam::Header::builder()
+            .add_reference_sequence("11", Map::<ReferenceSequence>::new(len))
+            .add_reference_sequence("12", Map::<ReferenceSequence>::new(len))
+            .build()
+    }
+
+    // A mapped record on `reference_sequence_id` spanning [start, start + span - 1]
+    // (a single `{span}M` cigar yields that alignment end).
+    fn mapped_record(reference_sequence_id: usize, start: usize, span: usize) -> RecordBuf {
+        RecordBuf::builder()
+            .set_reference_sequence_id(reference_sequence_id)
+            .set_alignment_start(Position::new(start).unwrap())
+            .set_cigar(Cigar::from(vec![Op::new(Kind::Match, span)]))
+            .build()
+    }
 
     #[test]
     fn record_to_sam_bytes_omits_trailing_newline() {
@@ -90,5 +115,63 @@ mod tests {
              and break pysam.AlignedSegment.fromstring); got {:?}",
             String::from_utf8_lossy(&bytes)
         );
+    }
+
+    #[test]
+    fn region_filter_drops_unmapped_record() {
+        let header = header_with_refs();
+        let region: Region = "11:1-1000000".parse().unwrap();
+        let filter = RegionFilter::new(&header, &region);
+        // Default record has no reference id and no alignment start.
+        assert!(!filter.matches(&RecordBuf::default(), &header));
+    }
+
+    proptest! {
+        // On the requested reference, a record matches exactly when its
+        // [start, end] overlaps the requested interval (both closed).
+        #[test]
+        fn region_filter_matches_iff_intervals_overlap(
+            rec_start in 1usize..2000,
+            rec_span in 1usize..300,
+            reg_start in 1usize..2000,
+            reg_span in 1usize..300,
+        ) {
+            let header = header_with_refs();
+            let reg_end = reg_start + reg_span - 1;
+            let region: Region = format!("11:{reg_start}-{reg_end}").parse().unwrap();
+            let filter = RegionFilter::new(&header, &region);
+
+            let record = mapped_record(0, rec_start, rec_span);
+            let rec_end = rec_start + rec_span - 1;
+            let overlaps = rec_start <= reg_end && reg_start <= rec_end;
+
+            prop_assert_eq!(filter.matches(&record, &header), overlaps);
+        }
+
+        // A record on a different reference never matches, whatever its position.
+        #[test]
+        fn region_filter_rejects_other_reference(
+            rec_start in 1usize..2000,
+            rec_span in 1usize..300,
+        ) {
+            let header = header_with_refs();
+            let region: Region = "11:1-1000000".parse().unwrap();
+            let filter = RegionFilter::new(&header, &region);
+            let record = mapped_record(1, rec_start, rec_span); // "12"
+            prop_assert!(!filter.matches(&record, &header));
+        }
+
+        // If the requested reference name is absent from the header, nothing matches.
+        #[test]
+        fn region_filter_rejects_when_name_absent_from_header(
+            rec_start in 1usize..2000,
+            rec_span in 1usize..300,
+        ) {
+            let header = header_with_refs();
+            let region: Region = "ZZ:1-1000000".parse().unwrap();
+            let filter = RegionFilter::new(&header, &region);
+            let record = mapped_record(0, rec_start, rec_span);
+            prop_assert!(!filter.matches(&record, &header));
+        }
     }
 }

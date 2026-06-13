@@ -16,4 +16,5 @@ futures = "0.3.30"
 noodles = { version = "0.78.0", features = ["vcf", "bam", "cram", "bcf", "htsget", "sam", "fasta", "core", "async"] }
 
 [dev-dependencies]
+proptest = "1"
 testcontainers = { version = "0.23.1", features = ["blocking"] }
