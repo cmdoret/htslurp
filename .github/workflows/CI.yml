@@ -112,9 +112,12 @@ jobs:
   macos:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
+      fail-fast: false
       matrix:
         platform:
-          - runner: macos-12
+          # macos-12 (from the maturin v1.7.0 template) was retired by GitHub;
+          # macos-13 is the current Intel image, macos-14 is Apple Silicon.
+          - runner: macos-13
             target: x86_64
           - runner: macos-14
             target: aarch64
