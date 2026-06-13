@@ -27,7 +27,7 @@ lint *args:
     ruff check python {{args}}
 
 # Run the full test suite (Rust, Python and docker).
-test: (test-rust "--" "--ignored") (test-python)
+test: (test-rust "--" "--include-ignored") (test-python)
 
 # Run the Rust test suite
 [private]
