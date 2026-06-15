@@ -123,6 +123,9 @@ mod tests {
     }
 
     proptest! {
+        // No on-disk regression seeds (keeps the repo root tidy).
+        #![proptest_config(ProptestConfig { failure_persistence: None, ..ProptestConfig::default() })]
+
         // On the requested reference, a record matches exactly when its
         // [start, end] overlaps the requested interval (both closed).
         #[test]

@@ -2,6 +2,8 @@
   <img src="./docs/assets/logo.svg" alt="HTSlurp logo" width="250">
 </p>
 
+<!-- --8<-- [start:docs] -->
+
 # htslurp
 
 A noodles-based [htsget](https://samtools.github.io/hts-specs/htsget.html) client
@@ -75,3 +77,6 @@ To preview the docs locally:
 ```sh
 just docs
 ```
+
+<!-- --8<-- [end:docs] -->
+
