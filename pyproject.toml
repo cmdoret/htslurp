@@ -25,8 +25,8 @@ integration = [
     "testcontainers>=4,<5",
 ]
 docs = [
-    "mkdocs-material",
-    "mkdocstrings[python]",
+    "mkdocs-material>=9,<10",
+    "mkdocstrings[python]>=1,<2",
 ]
 [tool.maturin]
 python-source = "python"
