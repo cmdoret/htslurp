@@ -8,12 +8,10 @@ mod stream;
 
 /// Lazy iterator over alignment records returned by ``stream_records``.
 ///
-/// Each item is a ``bytes`` object containing one SAM-format alignment line.
-/// Records are decoded on demand from a background worker thread, so memory
-/// usage is bounded regardless of how much data the server returns.
-///
-/// The ``header`` attribute returns the full SAM header as ``bytes`` so
-/// callers can reconstruct a ``pysam.AlignmentHeader`` for downstream parsing.
+/// Each item is a ``bytes`` object holding one SAM-format alignment line,
+/// decoded on demand by a background worker thread (so memory stays bounded).
+/// The ``header`` attribute is the SAM header as ``bytes``, e.g. to rebuild a
+/// ``pysam.AlignmentHeader``.
 #[pyclass]
 pub struct RecordIter {
     pub(crate) header: Vec<u8>,

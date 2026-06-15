@@ -46,10 +46,9 @@ pub(crate) fn start_stream(
     }
 }
 
-/// Run the worker `body`, forwarding its outcome to `tx`. A panic is converted
-/// into a terminal channel error; otherwise the worker thread would simply die,
-/// `rx` would see a clean close, and the consumer would read a silently
-/// truncated stream as if it had completed successfully.
+/// Run the worker `body`, forwarding its outcome to `tx`. A panic becomes a
+/// terminal channel error; otherwise the thread would die, the channel would
+/// close cleanly, and the consumer would see a silently truncated stream.
 fn run_to_channel<F>(tx: mpsc::Sender<io::Result<Vec<u8>>>, body: F)
 where
     F: FnOnce(&mpsc::Sender<io::Result<Vec<u8>>>) -> Result<(), Box<dyn std::error::Error>>,
@@ -114,8 +113,7 @@ where
 {
     while let Some(record) = records.next().await {
         // A decode error is terminal: the binary stream is likely desynced, so
-        // we surface the error (it reaches Python as a raised exception) and
-        // stop rather than emit garbage from later offsets.
+        // surface it and stop rather than emit garbage from later offsets.
         let record = record?;
         if let Some(filter) = filter {
             if !filter.matches(&record, header) {

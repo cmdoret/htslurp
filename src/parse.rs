@@ -28,10 +28,8 @@ pub(crate) fn header_to_sam_bytes(
 }
 
 // htsget responses are coarser than the requested region (BGZF blocks span
-// extra flanking records), so each record is re-checked against the request.
-//
-// The reference-sequence index and interval are invariant across the stream,
-// so they are resolved once here rather than per record.
+// extra flanking records), so each record is re-checked. The reference index
+// and interval are invariant per stream, so they're resolved once.
 pub(crate) struct RegionFilter {
     // `None` when the region's reference name is absent from the header, in
     // which case no record can match.
@@ -61,10 +59,8 @@ impl RegionFilter {
         if ref_id != target_ref_id {
             return false;
         }
-        // Records without a resolvable start/end (e.g. placed-but-unmapped
-        // reads) are dropped rather than included: we can't position them
-        // against the interval. This is a deliberate policy, not a missed edge
-        // case.
+        // Drop records without a resolvable start/end (e.g. placed-but-unmapped
+        // reads): they can't be positioned against the interval.
         let (Some(Ok(start)), Some(Ok(end))) = (record.alignment_start(), record.alignment_end())
         else {
             return false;

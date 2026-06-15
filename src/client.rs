@@ -7,9 +7,8 @@ use std::path::PathBuf;
 
 /// Stream alignment records from an htsget server.
 ///
-/// Lazily fetches and decodes a (possibly region-restricted) slice of a BAM
-/// or CRAM resource. Memory usage is bounded by an internal record buffer;
-/// the full response is never materialized.
+/// Lazily fetches and decodes a (possibly region-restricted) BAM or CRAM
+/// slice; the full response is never materialized.
 ///
 /// Args:
 ///     base_url: htsget endpoint URL (e.g. ``"https://htsget.ga4gh.org/reads"``).
@@ -49,9 +48,8 @@ pub fn stream_records(
     let base_url = base_url.to_string();
     let id = id.to_string();
     let reference = reference.map(PathBuf::from);
-    // start_stream blocks until the worker has fetched and decoded the header
-    // (a full network round-trip). Release the GIL so other Python threads
-    // aren't frozen for the duration.
+    // Release the GIL: start_stream blocks on the worker's first message,
+    // a full network round-trip.
     let (header, rx) = py
         .detach(move || start_stream(base_url, id, fmt, parsed_region, reference))
         .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
