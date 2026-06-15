@@ -32,9 +32,9 @@ test: (test-rust "--" "--include-ignored") (test-python "-m" "integration or not
 # Run the Rust test suite
 [private]
 test-rust *args:
-    cargo test {{args}}
+    cargo test "$@"
 
 # Run the Python test suite
 [private]
 test-python *args: develop
-    pytest {{args}}
+    pytest "$@"
