@@ -16,6 +16,11 @@ build *args:
 develop *args:
     maturin develop --uv --extras integration "$@"
 
+# Serve the documentation site locally (builds the extension for API autodoc).
+docs *args:
+    maturin develop --uv --extras docs
+    mkdocs serve "$@"
+
 # Format Rust and Python sources.
 format *args:
     cargo fmt {{args}}

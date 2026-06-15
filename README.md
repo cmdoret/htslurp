@@ -1,15 +1,48 @@
+<p align="center">
+  <img src="./docs/assets/logo.svg" alt="HTSlurp logo" width="250">
+</p>
+
 # htslurp
 
->[!WARNING]
-> This is an experiment and the code is in a not-working state.
+A noodles-based [htsget](https://samtools.github.io/hts-specs/htsget.html) client
+that lazily deserializes alignment records in memory. It provides a Rust API with
+Python bindings, so you can consume remote CRAM/BAM records over the network
+without storing them locally.
 
-Attempt at making a noodles-based htsget client that can lazily deserialize records in memory. The aim is to provide a simple rust API with python bindings.
+Documentation: <https://cmdoret.github.io/htslurp/>
+
+## Install
+
+```sh
+pip install htslurp
+```
+
+## Usage
+
+```python
+import htslurp
+
+records = htslurp.stream_records(
+    "https://htsget.ga4gh.org/reads",
+    "giab.NA12878",
+    "CRAM",
+    region="11:4900000-5000000",
+)
+
+header_text = records.header.decode()
+for line in records:
+    fields = line.decode().split("\t")
+    # ... or feed `line.decode()` and a pysam.AlignmentHeader built from
+    # `header_text` to pysam.AlignedSegment.fromstring.
+```
+
+See the [quickstart](https://cmdoret.github.io/htslurp/quickstart/) for more.
 
 ## Context
 
-The aim of this project is to provide a convenient interface to consume remote CRAM/BCF records over the network without storing them locally.
-
-The noodles crate is used to fetch a binary stream from a server and construct a reader over it that can lazily instantiate records.
+The aim is to provide a convenient interface to consume remote CRAM/BCF records
+over the network without storing them locally. The noodles crate fetches a binary
+stream from the server and builds a reader over it that lazily instantiates records.
 
 ```mermaid
 flowchart LR
@@ -31,7 +64,14 @@ To build the python package:
 just build
 ```
 
-To install the project in installable mode:
+To install in editable mode for development:
+
 ```sh
 just develop
+```
+
+To preview the docs locally:
+
+```sh
+just docs
 ```

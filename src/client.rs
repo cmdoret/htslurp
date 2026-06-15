@@ -11,17 +11,21 @@ use std::path::PathBuf;
 /// slice; the full response is never materialized.
 ///
 /// Args:
-///     base_url: htsget endpoint URL (e.g. ``"https://htsget.ga4gh.org/reads"``).
-///     id: Resource identifier on the server (e.g. ``"giab.NA12878"``).
-///     format: ``"BAM"`` or ``"CRAM"``.
-///     region: Optional genomic region string (e.g. ``"chr1:1000-2000"``).
+///     base_url (str): htsget endpoint URL (e.g. ``"https://htsget.ga4gh.org/reads"``).
+///     id (str): Resource identifier on the server (e.g. ``"giab.NA12878"``).
+///     format (str): ``"BAM"`` or ``"CRAM"``.
+///     region (str, optional): Genomic region string (e.g. ``"chr1:1000-2000"``).
 ///         When set, records that don't overlap are dropped.
-///     reference: Optional path to an indexed FASTA. Required only for CRAMs
-///         that use external reference-based compression.
+///     reference (str, optional): Path to an indexed FASTA. Required only for
+///         CRAMs that use external reference-based compression.
 ///
 /// Returns:
-///     A ``RecordIter`` yielding ``bytes`` (SAM lines). ``RecordIter.header``
-///     is the SAM header as ``bytes``.
+///     RecordIter: Lazy iterator of SAM-format ``bytes`` lines; its ``header``
+///         attribute holds the SAM header as ``bytes``.
+///
+/// Raises:
+///     RuntimeError: If the request fails (unreachable server, unknown id,
+///         invalid region) or a record fails to decode mid-stream.
 #[pyfunction]
 #[pyo3(signature = (base_url, id, format, region=None, reference=None))]
 pub fn stream_records(

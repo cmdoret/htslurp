@@ -1,0 +1,53 @@
+site_name: htslurp
+site_description: Stream alignment records from htsget servers
+repo_url: https://github.com/cmdoret/htslurp
+site_url: https://cmdoret.github.io/htslurp/
+
+theme:
+  name: material
+  logo: assets/logo.svg
+  favicon: assets/favicon.svg
+  features:
+    - navigation.sections
+    - content.code.copy
+  # Dark (slate) first => default; toggle switches to light.
+  # Dark header (primary black) + teal accent so the teal logo stays crisp.
+  palette:
+    - scheme: slate
+      primary: black
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      primary: black
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - API: api.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.snippets:
+      base_path: ["."]
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            docstring_options:
+              returns_named_value: false
+            show_source: false

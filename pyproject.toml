@@ -4,6 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "htslurp"
+description = "Stream alignment records from htsget servers"
 requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Rust",
@@ -11,6 +12,10 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://cmdoret.github.io/htslurp/"
+Repository = "https://github.com/cmdoret/htslurp"
 [project.optional-dependencies]
 tests = [
     "pytest",
@@ -18,6 +23,10 @@ tests = [
 integration = [
     "pytest",
     "testcontainers>=4,<5",
+]
+docs = [
+    "mkdocs-material>=9,<10",
+    "mkdocstrings[python]>=1,<2",
 ]
 [tool.maturin]
 python-source = "python"
