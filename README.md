@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./docs/assets/logo.svg" alt="HTSlurp logo" width="250">
+</p>
+
 # htslurp
 
 A noodles-based [htsget](https://samtools.github.io/hts-specs/htsget.html) client
