@@ -5,6 +5,8 @@ site_url: https://cmdoret.github.io/htslurp/
 
 theme:
   name: material
+  logo: assets/logo.svg
+  favicon: assets/favicon.svg
   features:
     - navigation.sections
     - content.code.copy
