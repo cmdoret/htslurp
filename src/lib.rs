@@ -1,7 +1,6 @@
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
-use pyo3::wrap_pymodule;
 mod client;
 mod parse;
 mod stream;
@@ -45,16 +44,8 @@ impl RecordIter {
 }
 
 #[pymodule]
-mod htsget_client {
-    #[pymodule_export]
-    use crate::client::stream_records;
-    #[pymodule_export]
-    use crate::RecordIter;
-}
-
-#[pymodule]
 fn htslurp(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_wrapped(wrap_pymodule!(htsget_client))?;
+    m.add_function(wrap_pyfunction!(client::stream_records, m)?)?;
     m.add_class::<RecordIter>()?;
     Ok(())
 }

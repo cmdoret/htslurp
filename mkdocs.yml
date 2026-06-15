@@ -1,0 +1,36 @@
+site_name: htslurp
+site_description: Stream alignment records from htsget servers
+repo_url: https://github.com/cmdoret/htslurp
+site_url: https://cmdoret.github.io/htslurp/
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - API: api.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.snippets:
+      base_path: ["."]
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            docstring_options:
+              returns_named_value: false
+            show_source: false

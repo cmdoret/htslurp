@@ -15,9 +15,6 @@ Example:
     ...     # built from `header_text` to pysam.AlignedSegment.fromstring.
 """
 
-from .htslurp import htsget_client
+from .htslurp import RecordIter, stream_records
 
-stream_records = htsget_client.stream_records
-RecordIter = htsget_client.RecordIter
-
-__all__ = ["stream_records", "RecordIter"]
+__all__ = ["RecordIter", "stream_records"]
