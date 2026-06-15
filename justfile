@@ -12,9 +12,9 @@ default:
 build *args:
     maturin build --release {{args}}
 
-# Build and install the extension into the active environment for development.
+# Build and install the extension (with test extras) into the active environment.
 develop *args:
-    maturin develop --uv {{args}}
+    maturin develop --uv --extras integration "$@"
 
 # Format Rust and Python sources.
 format *args:
