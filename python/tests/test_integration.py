@@ -1,15 +1,14 @@
 """End-to-end streaming through the Python API against a real htsget-rs server.
 
-Requires Docker. Marked ``integration`` so it is excluded from the fast unit
-runs (``pytest -m "not integration"``) and skipped when Docker is unavailable.
-Unlike the Rust integration test (which drives ``start_stream`` directly), this
-exercises the public binding: ``stream_records`` -> ``RecordIter`` iteration ->
-``.header`` -> record ``bytes``.
+Marked ``integration`` so it is excluded from the default unit run and only
+exercised when explicitly enabled (``just test`` / ``pytest -m integration``).
+Needs Docker. Unlike the Rust integration test (which drives ``start_stream``
+directly), this exercises the public binding: ``stream_records`` ->
+``RecordIter`` iteration -> ``.header`` -> record ``bytes``.
 """
 
 import os
 import socket
-import subprocess
 import time
 from pathlib import Path
 
@@ -18,29 +17,14 @@ import pytest
 import htslurp
 
 # The fixture stops the container explicitly, so the Ryuk cleanup sidecar is
-# redundant; disabling it avoids a failure mode in environments where Ryuk's
-# networking is unavailable.
+# redundant; disabling it avoids a failure mode where Ryuk's networking is
+# unavailable.
 os.environ.setdefault("TESTCONTAINERS_RYUK_DISABLED", "true")
 
-pytest.importorskip("testcontainers")
-from testcontainers.core.container import DockerContainer  # noqa: E402
+pytestmark = pytest.mark.integration
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 REGION = "11:4900000-5000000"
-
-
-def _docker_available() -> bool:
-    try:
-        subprocess.run(["docker", "info"], capture_output=True, timeout=10, check=True)
-        return True
-    except Exception:
-        return False
-
-
-pytestmark = [
-    pytest.mark.integration,
-    pytest.mark.skipif(not _docker_available(), reason="Docker is not available"),
-]
 
 
 def _wait_for_port(host: str, port: int, timeout: float = 30.0) -> None:
@@ -56,6 +40,8 @@ def _wait_for_port(host: str, port: int, timeout: float = 30.0) -> None:
 
 @pytest.fixture(scope="module")
 def htsget_url():
+    from testcontainers.core.container import DockerContainer
+
     # htsget-rs serves tickets on 8080 and data blocks on 8081, with the repo's
     # ./data mounted at /data. The data-block URL the server advertises is its
     # HTSGET_DATA_SERVER_ADDR, so it must be a host-reachable address (the
