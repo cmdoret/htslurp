@@ -48,6 +48,7 @@ jobs:
   # will not cross-compile in the manylinux container.
   # Re-running `maturin generate-ci` will overwrite this.
   linux:
+    needs: test
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       fail-fast: false
@@ -77,6 +78,7 @@ jobs:
 
   # native ARM runner for aarch64, cross targets dropped.
   musllinux:
+    needs: test
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       fail-fast: false
@@ -105,6 +107,7 @@ jobs:
           path: dist
 
   windows:
+    needs: test
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       matrix:
@@ -132,6 +135,7 @@ jobs:
           path: dist
 
   macos:
+    needs: test
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       fail-fast: false
@@ -159,6 +163,7 @@ jobs:
           path: dist
 
   sdist:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
