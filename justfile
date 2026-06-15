@@ -1,19 +1,40 @@
 set positional-arguments
 set shell := ["bash", "-cue"]
-root := justfile_directory()
-src := "./src/modos.typ"
-pdf := "./build/modos.pdf"
 
+root_dir := `git rev-parse --show-toplevel`
 
-# build wheel
+# Default recipe to list all recipes.
+[private]
+default:
+    just --list
+
+# Build the release wheel.
 build *args:
-  maturin build \
-    --release \
-    {{args}}
+    maturin build --release {{args}}
 
-# development environment
+# Build and install the extension (with test extras) into the active environment.
 develop *args:
-  maturin develop \
-  --uv \
-  {{args}}
+    maturin develop --uv --extras integration "$@"
 
+# Format Rust and Python sources.
+format *args:
+    cargo fmt {{args}}
+    ruff format python {{args}}
+
+# Lint Rust (clippy) and Python (ruff) sources.
+lint *args:
+    cargo clippy --all-targets {{args}}
+    ruff check python {{args}}
+
+# Run the full test suite (Rust, Python and docker).
+test: (test-rust "--" "--include-ignored") (test-python "-m" "integration or not integration")
+
+# Run the Rust test suite
+[private]
+test-rust *args:
+    cargo test "$@"
+
+# Run the Python test suite
+[private]
+test-python *args: develop
+    pytest "$@"

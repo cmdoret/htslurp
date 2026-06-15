@@ -1,4 +1,12 @@
+# agents
+AGENTS.md
+.agents/
+CLAUDE.md
+.claude
+
 /target
+.devenv/
+.direnv/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
