@@ -1,9 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="htslurp logo">
-  <!-- A straw (open, slanted tip, rounded bottom) with record blocks rising through it. -->
-  <g transform="rotate(12 24 24)">
-    <path d="M18 12 V36 a6 6 0 0 0 12 0 V6" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-    <rect x="21" y="27" width="6" height="6" rx="1.5" fill="#fff"/>
-    <rect x="21" y="18" width="6" height="6" rx="1.5" fill="#fff"/>
-    <rect x="21" y="9" width="6" height="6" rx="1.5" fill="#fff"/>
+  <g transform="rotate(8 24 24)">
+    <!-- bendy straw: open tube with a kinked drinking end -->
+    <g fill="none" stroke="#0d9488" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M19 42 V23 Q19 15 27 12"/>
+      <path d="M27 42 V23 Q27 16 35 13"/>
+    </g>
+    <!-- records rising inside the shaft (small + centered = contents, not rungs) -->
+    <g fill="#0d9488">
+      <rect x="21.2" y="34" width="3.6" height="3.6" rx="0.9"/>
+      <rect x="21.2" y="28.5" width="3.6" height="3.6" rx="0.9"/>
+      <rect x="21.2" y="23" width="3.6" height="3.6" rx="0.9"/>
+    </g>
   </g>
 </svg>
