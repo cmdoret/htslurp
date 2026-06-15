@@ -55,6 +55,7 @@
                   enable = true;
                   requirements = ''
                     pytest
+                    testcontainers
                   '';
                 };
                 uv.enable = true;

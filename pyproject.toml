@@ -15,9 +15,19 @@ dynamic = ["version"]
 tests = [
     "pytest",
 ]
+integration = [
+    "pytest",
+    "testcontainers>=4,<5",
+]
 [tool.maturin]
 python-source = "python"
 features = ["pyo3/extension-module"]
+
+[tool.pytest.ini_options]
+testpaths = ["python/tests"]
+markers = [
+    "integration: end-to-end tests that need Docker (spins up an htsget-rs container)",
+]
 
 [tool.ruff]
 target-version = "py310"
