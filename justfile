@@ -24,12 +24,12 @@ docs *args:
 # Format Rust and Python sources.
 format *args:
     cargo fmt {{args}}
-    ruff format python {{args}}
+    ruff format src tests {{args}}
 
 # Lint Rust (clippy) and Python (ruff) sources.
 lint *args:
     cargo clippy --all-targets {{args}}
-    ruff check python {{args}}
+    ruff check src tests {{args}}
 
 # Run the full test suite (Rust, Python and docker).
 test: (test-rust "--" "--include-ignored") (test-python "-m" "integration or not integration")

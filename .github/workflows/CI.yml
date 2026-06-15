@@ -37,8 +37,8 @@ jobs:
       - name: Python checks
         run: |
           pip install ruff
-          ruff check python
-          ruff format --check python
+          ruff check src tests
+          ruff format --check src tests
           pip install '.[tests]'
           pytest
 
