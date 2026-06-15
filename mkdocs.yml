@@ -8,6 +8,16 @@ theme:
   features:
     - navigation.sections
     - content.code.copy
+  # Dark (slate) first => default; toggle switches to light.
+  palette:
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
 
 nav:
   - Home: index.md
