@@ -185,6 +185,8 @@ jobs:
     needs: [test, linux, musllinux, windows, macos, sdist]
     environment: pypi
     permissions:
+      contents: read
+      actions: read
       id-token: write
     steps:
       - uses: actions/download-artifact@v4
