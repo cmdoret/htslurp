@@ -1,5 +1,15 @@
 <p align="center">
   <img src="./docs/assets/logo.svg" alt="HTSlurp logo" width="250">
+  </br>
+  <a href="https://github.com/cmdoret/htslurp/actions/workflows/CI.yml">
+    <img alt="CI badge" src="https://img.shields.io/github/actions/workflow/status/cmdoret/htslurp/CI.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI">
+  </a>
+  <a href="https://cmdoret.github.io/htslurp">
+    <img alt="Docs badge" src="https://img.shields.io/github/actions/workflow/status/cmdoret/htslurp/docs.yml?branch=main&style=for-the-badge&logo=materialformkdocs&logoColor=white&label=docs">
+  </a>
+  <a href="https://pypi.org/project/htslurp">
+    <img alt="PyPI badge" src="https://img.shields.io/pypi/v/htslurp?style=for-the-badge&logo=pypi&logoColor=white">
+  </a>
 </p>
 
 <!-- --8<-- [start:docs] -->
